@@ -18,6 +18,10 @@ def hello():
 def login():
 	return render_template('login.html')
 
+@app.route('/confirm')
+def confirm():
+	return render_template('confirm.html')
+
 @app.route('/post')
 def postpage():
 	return render_template('post.html')
@@ -68,20 +72,49 @@ def registerAuth():
 
 @app.route('/home')
 def home():
-	username = session['username']
-	return render_template('home.html', username=username)
+    username = session['username']
+    sql ="select id, content_name from Content  where id in (select distinct(id) from content  where public = true or id in (select DISTINCT(id) from Member join Share using(group_name) where Member.username = %s)) order by timest DESC"
+    cursor = conn.cursor()
+    cursor.execute(sql,(username))
+    #data = cursor.fetchall()
+    data = cursor.fetchall()
+
+    cursor2 = conn.cursor()
+    sql2 = 'Select id,username,comment_text from  Comment where id in (select distinct(id) from content   where public = true or id in (select DISTINCT(id) from Member join Share using(group_name) where Member.username = %s) )'
+    cursor2.execute(sql2, (username))
+    data2 = cursor2.fetchall()
+
+    cursor3 = conn.cursor()
+    sql3 = 'select id, first_name,last_name from((select distinct(id), first_name,last_name from content natural join Person where public = true or id in (select DISTINCT(id) from Member join Share using(group_name) where Member.username = %s)) as sub  natural join tag) where status = "1"'
+    cursor3.execute(sql3, (username))
+    data3 = cursor3.fetchall()
+
+    cursor4 = conn.cursor()
+    sql4 = """select id, first_name,last_name,username_tagger from((select distinct(id), first_name,last_name from content natural join Person where public = true or id in (select DISTINCT(id) from Member join Share using(group_name) where Member.username = %s)) as sub  natural join tag) where status="0" and username_taggee = %s"""
+#     sql4 = """select id, first_name,last_name,username_tagger
+# from((select distinct(id), first_name,last_name
+# from content natural join Person
+# where public = true or id in
+#     		(select DISTINCT(id)
+# 				from Member join Share using(group_name)
+# 				where Member.username = %s)) as sub  natural join tag) where status="0" and username_taggee = %s """
+    cursor4.execute(sql4, (username, username))
+    data4 = cursor4.fetchall()
+
+
+    return render_template('home.html', username=username, data=data, data2=data2,data3=data3, data4 = data4)
 
 @app.route('/postform', methods=['GET', 'POST'])
 def post():
     title = request.form['title']
     username = session['username']
-    privacy = request.form['privacy']
+    state = request.form['privacy']
     cursor = conn.cursor()
-    query = 'INSERT INTO Content (username,content_name,public) VALUES(%s, %s,%s)'
-    cursor.execute(query, (username, title, privacy))
+    query = 'INSERT INTO Content(username,content_name,public) VALUES(%s, %s,%s)'
+    cursor.execute(query, (username, title, state))
     conn.commit()
     cursor.close()
-    if privacy == "false":
+    if state == "0":
         cursor = conn.cursor()
         query = 'Select group_name From FriendGroup where username = %s'
         cursor.execute(query, username)
@@ -94,11 +127,10 @@ def post():
     else:
         msg = 'You have made a new public post!!'
         return render_template('post.html', msg=msg)
-      
+
 @app.route('/selectgroup', methods=['GET', 'POST'])
 def selectgroup():
     multiselect = request.form.getlist('mymultiselect')
-    last = 'LAST_INSERT_ID()'
     cursor = conn.cursor()
     query = 'Select max(id) From Content'
     cursor.execute(query)
@@ -114,8 +146,34 @@ def selectgroup():
         cursor.close()
     return render_template('post.html')
 
+@app.route('/tagconfirm', methods=['GET', 'POST'])
+def tagconfirm():
+    state = request.form['status']
+    cid = request.form['id']
+    username = session['username']
+    tagger = request.form['tagger']
+    cursor = conn.cursor()
+    cursor2 = conn.cursor()
 
-      
+    if state == "1":
+        query = "update Tag set status = 1 where id = %s"
+        cursor.execute(query, cid)
+        conn.commit()
+        cursor.close()
+
+    if state == "-1":
+        query2 = 'Delete from Tag where id = %s and username_taggee = %s and username_tagger = %s'
+        cursor2.execute(query2, (cid, username, tagger))
+        conn.commit()
+        cursor2.close()
+
+    # if state == 1:
+    #     return redirect(url_for('login.html'))
+    # if state == -1:
+    #     return redirect(url_for('post.html'))
+
+    return render_template('confirm.html')
+
 @app.route('/addFriend')
 def addFriend():
   friendGroup = request.form['Friend Group']
@@ -210,7 +268,24 @@ def manageTags():
   #When we change it to false do we need to go to each content item and remove the tag from there?
   #Accept/Decline needs to change the status on the tagger's tag table as well?
   #Return returns the user back to the home page with other options
-        
+
+@app.route('/comment')
+def comment():
+  #Already needs to be in the session, not sure how to put this in code
+  #query = 'SELECT * FROM content WHERE ???'
+  #Have html functions like the manageTags function, with multiple buttons: Comment, Like, Unlike
+  #Combining two functions into one
+  #Allow the user to select one only? And press Comment button allows them to write the comment they desire
+  #comment = request_form['Comment here']
+  #Take the ID from the content selected/checked off (not sure how to implement this)
+  #
+  
+@app.route('/like)
+def like():
+  #Already needs to be in the session, not sure how to put this in code         
+@app.route('defriend')
+def defriend():
+  #Already needs to be in the session, not sure how to put this in code
 app.secret_key = 'some key that you will never guess'
 if __name__ == "__main__":
 	app.run('127.0.0.1', 5000, debug = True)
