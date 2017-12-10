@@ -19,15 +19,15 @@ INSERT INTO friendgroup VALUES ("Family", 'AA', "Ann's Family")
 INSERT INTO member VALUES ('DA', "Family", 'AA')
 INSERT INTO member VALUES ('AA', "Family", 'AA')
 
-INSERT INTO content VALUES (12345, 'JT', 12:14, "C:\Users\Jacky\Desktop\Doggos.jpeg", "Doggos", "False")
+INSERT INTO content (username, timest, file_path, content_name, public) VALUES ('JT', 12:14, "C:\Users\Jacky\Desktop\Doggos.jpeg", "Doggos", "False")
 INSERT INTO share VALUES (12345, "Friends", 'JT')
 INSERT INTO comment VALUES (12345, 'CC', 22:35, "So cute!")
 INSERT INTO comment VALUES (12345, 'MH', 23:01, ":D")
 
-INSERT INTO content VALUES (12346, 'JT', 19:04, "C:\Users\Jacky\Desktop\Tree.jpeg", "Christmas Tree", "True")
+INSERT INTO content (username, timest, file_path, content_name, public) VALUES ('JT', 19:04, "C:\Users\Jacky\Desktop\Tree.jpeg", "Christmas Tree", "True")
 INSERT INTO comment VALUES (12346, 'AA', 20:15, "Wow!")
 
-INSERT INTO content VALUES (12347, 'AA', 13:13, "C:\Users\Ann\Pictures\fd1.jpeg", "Family Dinner", "False")
+INSERT INTO content (username, timest, file_path, content_name, public) VALUES ('AA', 13:13, "C:\Users\Ann\Pictures\fd1.jpeg", "Family Dinner", "False")
 INSERT INTO share VALUES (12347, "Family", 'AA')
 INSERT INTO tag VALUES (12347, 'AA', 'DA', 13:14, "True")
 INSERT INTO comment VALUES (12347, 'DA', 14:01, "Haha what is Mom doing")
