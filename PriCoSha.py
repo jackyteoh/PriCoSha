@@ -32,7 +32,6 @@ def register():
 
 @app.route('/loginAuth', methods=['GET', 'POST'])
 def loginAuth():
-
 	username = request.form['username']
 	password = request.form['password']
 	cursor = conn.cursor()
@@ -50,7 +49,6 @@ def loginAuth():
 
 @app.route('/registerAuth', methods=['GET', 'POST'])
 def registerAuth():
-	
 	username = request.form['username']
 	password = request.form['password']
 	firstname = request.form['fname']
@@ -174,11 +172,13 @@ def tagconfirm():
 
     return render_template('confirm.html')
 
-@app.route('/addFriend')
+@app.route('/addFriend', methods=['GET', 'POST'])
 def addFriend():
   friendGroup = request.form['Friend Group']
+  master_username = session['username']
   cursor = conn.cursor()
-  query = 'SELECT * FROM friendgroup WHERE friendGroup = %s'
+  query = 'SELECT * FROM friendgroup WHERE group_name = %s'
+  groupname = 'SELECT group_name FROM friendgroup WHERE group_name = %s'
   cursor.execute(query, (friendGroup))
   data = cursor.fetchone()
   error = None
@@ -186,21 +186,41 @@ def addFriend():
   firstname = request.form['f_name']
   lastname = request.form['l_name']
   cursor2 = conn.cursor2()
+  cursor4 = conn.cursor4()
   query2 = 'SELECT * FROM Person WHERE firstname = %s AND lastname = %s'
-  cursor2.execute(query, (firstname, lastname))
-  data2 = cursor2.fetchone()
+  query4 = 'SELECT COUNT(*) FROM Person WHERE firstname = %s AND lastname = %s'
+  cursor2.execute(query2, (firstname, lastname))
+  cursor4.execute(query4, (firstname, lastname))
+  data2 = cursor2.fetchall()
+  data4 = cursor4.fetchone()
   error2 = None
-  if (data): #Error of friendGroup not existing
+  if (!data): #Error of friendGroup not existing
     error = "This friendGroup does not exist."
     return render_template('addFriend.html', error = error)
   else:
-  	if (data2): #Error of person that you are trying to add does not exist
+  	if (!data2): #Error of person that you are trying to add does not exist
     	error2 = "This person does not exist."
     	return render_template('addFriend.html', error2 = error2)
   	else if (data2): #Error of person already existing in the friendGroup
-    	error2 = "This person is already in this friend group."
-    	return render_template('addFriend.html', error2 = error2)
-  	else if (data2): #Error of multiple people having the same name
+      #Need to change this, check member group to see if they're inside it already
+      #check for username
+      query5 = 'SELECT username FROM member WHERE username = (SELECT username FROM Person WHERE first_name = firstname AND last_name = lastname)'
+      cursor5.execute(query5, (firstname, lastname))
+      data5 = cursor5.fetchone()
+      error5 = none
+      if (data5):
+        error5 = "This person already exists inside the friend group! Or are you trying to add a different user with the same name?"
+      	username = request.form['username']
+        if (data5 = username):
+          error6 = "This is the same person!!!!"
+        	return render_template('addFriend.html', error6 = error6)
+      	else:
+          query7 = 'INSERT INTO member VALUES (%s, %s, %s)'
+          cursor.execute(query7, (username, groupname, master_username))
+          conn.commit()
+          cursor.close()
+    			return render_template('addFriend.html')
+  	else if (data2 and data4 > 1): #Error of multiple people having the same name
     	error2 = "There are multiple people with this name. Please give their username."
     	username = request.form['username']
     	cursor3 = conn.cursor3()
@@ -208,12 +228,12 @@ def addFriend():
     	cursor3.execute(query, (firstname, lastname, username))
     	data3 = cursor3.fetchone()
     	error3 = None
-    	if (data3): #Error of the firstname, lastname, and username combo not existing
+    	if (!data3): #Error of the firstname, lastname, and username combo not existing
       	error3 = "This firstname, lastname, and username combo does not exist."
       	return render_template('addFriend.html', error3 = error3)
     	else:
-      	ins = 'INSERT INTO friendGroup VALUES (%s, %s, %s)
-      	cursor.execute(ins, (firstname, lastname, username))
+      	ins = 'INSERT INTO member VALUES (%s, %s, %s)'
+      	cursor.execute(ins, (username, groupname, master_username))
         #Need to also add the friendGroup into the added person's friendGroup
         #ins2 = 'INSERT INTO friendGroup VALUES (%s)
         #cursor3.execute(ins2, (friendGroup))
@@ -234,8 +254,9 @@ def addFriend():
       	cursor.close()
       	return render_template('addFriend.html')
   	else if (data2):
-    	ins = 'INSERT INTO friendGroup VALUES (%s, %s)'
-    	cursor.execute(ins, (firstname, lastname))
+    	ins = 'INSERT INTO member VALUES (%s, %s, %s)'
+      username2 = 'SELECT username FROM Person WHERE first_name = firstname AND last_name = lastname'
+    	cursor.execute(ins, (username2, groupname, master_username))
       #Need to also add the friendGroup into the added person's friendGroup
       #ins2 = 'INSERT INTO friendGroup VALUES (%s)
       #cursor3.execute(ins2, (friendGroup))
@@ -255,21 +276,39 @@ def addFriend():
     	cursor.close()
     	return render_template('addFriend.html')
   
-@app.route('/manageTags')
+@app.route('/manageTags', methods=['GET', 'POST'])
 def manageTags():
   #Already needs to be in the session, not sure how to put this in code
+  username = session['username']
   #Write a query to see all the possible tags? 'SELECT * FROM tag WHERE ???'
+  query = 'SELECT * FROM tag WHERE username_tagger = username OR username_taggee = username'
+  cursor = conn.cursor()
+  cursor.execute(query, (username))
+  data = cursor.fetchone()
+  #data = cursor.fetchall()
+  error = None
+  
   #Have the html functions in manageTags.html allow the user to check off certain tags they select
   #Have 3 HTML functions, "Accept", "Decline", "Remove", "Return" (Maybe add another 2, Select All & Deselect All ?)
   #Accept changes the tag status to "True"
-  #When we change it to true do we need to go to each content item and have the tag there?
+  accept = 'UPDATE tag SET status = "True" WHERE selected.id = tag.id AND username_taggee = username'
+  #Below problem, how do we update the tag table of the tagger to true? What conditions do we need?
+  accept2 = 'UPDATE tag SET status = "True" WHERE selected.id = tag.id AND username_tagger = '
   #Decline removes the tag from the tag table of both parties
+  decline = 'DELETE FROM tag WHERE selected.id = tag.id AND username_taggee = username'
+  #Same problem as with accept, how do we delete this tag from the tagger's tag table?
+  decline2 = 'DELETE FROM tag WHERE selected.id = tag.id AND username_tagger = '
   #Remove changes the tag status to "False"
-  #When we change it to false do we need to go to each content item and remove the tag from there?
+  remove = 'UPDATE tag SET status = "False" WHERE selected.id = tag.id AND username_taggee = username'
+  #Same problem as above.
+  remove2 = 'UPDATE tag SET status = "False" WHERE selected.id = tag.id AND username_tagger = '
   #Accept/Decline needs to change the status on the tagger's tag table as well?
   #Return returns the user back to the home page with other options
+  conn.commit()
+  cursor.close()
+  return render_template('managetags.html')
 
-@app.route('/comment')
+@app.route('/comment', methods=['GET', 'POST'])
 def comment():
   #Already needs to be in the session, not sure how to put this in code
   #query = 'SELECT * FROM content WHERE ???'
@@ -277,15 +316,76 @@ def comment():
   #Combining two functions into one
   #Allow the user to select one only? And press Comment button allows them to write the comment they desire
   #comment = request_form['Comment here']
+  #['Comment'] button HTML
   #Take the ID from the content selected/checked off (not sure how to implement this)
-  #
-  
-@app.route('/like)
+  #id = 'SELECT ID FROM content WHERE selected = "TRUE"' ?
+  #username = session['username'] <-- pull the username from the current session?
+  #How do we get the current timestamp? Is there a python function to get the current time?
+  #time = 
+  #Once ['Comment'] button is pressed, run the below query.
+  #query2 = 'INSERT INTO comment VALUES (id, username, time, comment)'
+  #after this return to the viewcontent page? the comment page? at viewcontent you can view the content/comment/like/unlike ?
+  return render_template('comment.html')
+	return render_template('viewcontent.html')
+
+@app.route('/like', methods=['GET', 'POST'])
 def like():
   #Already needs to be in the session, not sure how to put this in code         
-@app.route('defriend')
+  #query = 'SELECT * FROM content WHERE ???'
+  #Use HTML functions from above^
+  #Maybe add another column to the content table? "Likes" initialized to 0 with every post
+  #id = 'SELECT id from content WHERE selected = 'TRUE'' ? <-- how do we mark this?
+  #Then do we need to show who liked it? Or just the number of likes?
+  #If we keep track of who liked it, maybe we need another table in content? Likers?
+  #Are there vectors in python? Or does this even work in mySQL ? Can we have a list of likers inside a mySQL table?
+  #If we keep track of just the number of likes:
+  #likes = 'SELECT likes FROM content WHERE content.id = selected.id ? WHERE selected = TRUE ?'
+  #Above query not needed if likes = likes + 1 / likes++ / likes+= 1 works
+  #like = 'UPDATE content SET likes = likes + 1 ? likes++ ? likes+=1 ? WHERE content.id = SELECTED.id?' if ['Like'] button is pressed
+  #If we do unlike, we can just use the same query but subtract 1 instead.
+  #unlike = 'UPDATE content SET likes = likes - 1 ? likes-- ? likes-= 1? WHERE content.id = SELECTED.id' if ['Unlike'] button is pressed.
+  #Not sure how to denote which one to update (in the WHERE clause) how do we keep track of which ID got selected? Do we store that in a different variable? (ln 296)
+  #If we keep track of the actual likers:
+  #Like: if they like the content, add their username to the vector (?) of usernames in the content. not sure how to implement this. maybe counting likes is easier
+  #Unlike: if they unlike it, remove their username from the vector of usernames in the content
+  #Maybe don't keep track of the likers ? Could be easy to implement, have a view likes button. returns table of the user ids who liked it + like count
+  #Not sure how they're going to be stored though thats the main issue
+  return render_template('like.html')
+  return render_template('viewcontent.html')
+           
+@app.route('defriend', methods=['GET', 'POST'])
 def defriend():
+  
+  cursor = conn.cursor()
+  error = None
   #Already needs to be in the session, not sure how to put this in code
+  #Need to see a list of the friends of the session user? add friendslist column to Person table?
+  #Same issue with how we store a friendslist. vector in mySQL ?
+  #Maybe make another table itself called friendslist? Store by username/ID and friendid/friendusername ?
+  #Size would be huge. Twice the number of friendships (friendships are mutual)
+  #username = session['username']
+  #query = 'SELECT friendslist FROM person WHERE username = username'
+  #Have the HTML function from above functions, except be able to select multiple for this one. Have select all/deselect all too (?)
+  #[Unfriend] button
+  #If [Unfriend] button is pressed:
+  #Remove them from each other's friendslist if we implement this
+  #Remove the unfriended person from members of any friendGroup owned by the unfriender:
+  #username2 = 'SELECT username FROM friendslist WHERE selected = "TRUE"' ?
+  #unfriender = 'DELETE FROM username.friendslist WHERE username = username2'
+	#unfriendee = 'DELETE FROM username2.friendslist WHERE username = username'
+  #unfriendeegroup = 'DELETE FROM username2.member WHERE username_creator = username'
+  #I don't think anything needs to be done on the friend group owner side. Just needs to delete them from being a member of the friendgroup.
+  #unfriendeecontent = 'DELETE FROM username2.content WHERE username = username' deletes any content shared by the unfriender
+  #I believe we can still leave comments on content, they usually stay on other platforms even if you unfriend someone
+  #unfriendeetag = 'DELETE FROM username2.tag WHERE (username_tagger = username AND username_taggee = username2) OR (username_tagger = username2 AND username_taggee = username)
+	#unfriendertag = 'DELETE FROM username.tag WHERE (username_tagger = username AND username_taggee = username2) OR (username_tagger = username2 AND username_taggee = username)
+  #I think this covers all the possible problems that could occur with unfriending someone, we can use these in the summary/write this in full sentences.
+  conn.commit()
+  cursor.close()
+  return render_template('friendslist.html') #If we have an html for friendslist, what options would it have besides unfriending ?
+  return render_template('defriend.html')
+           
 app.secret_key = 'some key that you will never guess'
 if __name__ == "__main__":
 	app.run('127.0.0.1', 5000, debug = True)
+-
